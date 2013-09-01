@@ -5,7 +5,12 @@
 
 int main(int argc, char *argv[])
 {
-    if (he_boot(argv[1]) == -1) {
-        fprintf(stderr, "Woah! Could not boot");
+    int socket;
+    if ((socket = he_setup_socket(argv[1])) == -1) {
+        fprintf(stderr, "Woah! Could not setup");
+    }
+
+    if (he_listen(socket) == -1) {
+        fprintf(stderr, "Woah! Could not listen");
     }
 }

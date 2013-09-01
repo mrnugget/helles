@@ -5,8 +5,10 @@
 
 int main(int argc, char *argv[])
 {
+    char *port = argv[1];
     int socket;
-    if ((socket = he_setup_socket(argv[1])) == -1) {
+
+    if ((socket = he_socket(port)) != 0) {
         fprintf(stderr, "Woah! Could not setup");
     }
 

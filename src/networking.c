@@ -11,46 +11,52 @@
 
 #include "networking.h"
 
-int he_setup_socket(char *port)
+int he_socket(char *port)
 {
-    int sockfd;
-    struct addrinfo hints, *servinfo, *p;
-    int rv;
+    int sockfd, status;
+    struct addrinfo hints, *res, *rptr;
 
+    // Make sure the struct is zeroed before using it
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
 
-    if ((rv = getaddrinfo(NULL, port, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return -1;
+    // Specify what we want
+    hints.ai_family = AF_UNSPEC;     // Use IPv4 or IPv6
+    hints.ai_socktype = SOCK_STREAM; // TCP
+    hints.ai_flags = AI_PASSIVE;     // Automatically fill in the IP
+
+    // Fill `res` linked list via getaddrinfo, based on the provided hints
+    if ((status = getaddrinfo(NULL, port, &hints, &res) != 0)) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+        return status;
     }
 
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+    // Walk through the linked list `res` and try `socket(2)` on each node
+    for(rptr = res; rptr != NULL; rptr = rptr->ai_next) {
+        sockfd = socket(rptr->ai_family, rptr->ai_socktype, rptr->ai_protocol);
+        if (sockfd < 0) {
             perror("server: socket");
-            continue;
+            continue;                 // Try with next node
         }
 
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+        if (bind(sockfd, rptr->ai_addr, rptr->ai_addrlen) == -1) {
             close(sockfd);
             perror("server: bind");
-            continue;
+            continue;                 // Try with next node
         }
 
+        // socket and bind worked, jump out of the loop
         break;
     }
 
-    if (p == NULL) {
-        fprintf(stderr, "server: failed to bind\n");
+    if (res == NULL) {
+        // We went through the loop without success
         return -1;
     }
 
-    freeaddrinfo(servinfo);
+    freeaddrinfo(res);
     return sockfd;
-
 }
+
 int he_listen(int sockfd)
 {
     int new_fd;

@@ -1,4 +1,4 @@
-CFLAGS=-std=c99 -g -Wall -O3 -Isrc
+CFLAGS=-std=c99 -g -Wall
 LDLIBS=
 CC=gcc
 

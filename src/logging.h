@@ -10,7 +10,4 @@
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
 
-#define LOG_GREEN(str) printf(KGRN str KNRM);
-#define LOG_RED(str) printf(KRED str KNRM);
-
 #endif

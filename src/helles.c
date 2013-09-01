@@ -1,12 +1,11 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <logging.h>
-#include <networking.h>
+
+#include "logging.h"
+#include "networking.h"
 
 int main(int argc, char *argv[])
 {
-    LOG_GREEN("Hello World!\n");
-    LOG_RED("Hello World!\n");
-    setup_foo();
-    return 0;
+    if (he_boot(argv[1]) == -1) {
+        fprintf(stderr, "Woah! Could not boot");
+    }
 }

@@ -14,6 +14,7 @@
 int he_socket(char *port)
 {
     int sockfd, status;
+    const int yes = 1;
     struct addrinfo hints, *res, *rptr;
 
     // Make sure the struct is zeroed before using it
@@ -32,19 +33,28 @@ int he_socket(char *port)
 
     // Walk through the linked list `res` and try `socket(2)` on each node
     for(rptr = res; rptr != NULL; rptr = rptr->ai_next) {
+        // Create a socket
         sockfd = socket(rptr->ai_family, rptr->ai_socktype, rptr->ai_protocol);
         if (sockfd < 0) {
-            perror("server: socket");
+            perror("he_socket: socket");
             continue;                 // Try with next node
         }
 
-        if (bind(sockfd, rptr->ai_addr, rptr->ai_addrlen) == -1) {
+        // Enable SO_REUSEADDR
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+                    sizeof(yes)) < 0) {
+            perror("he_socket: setsockopt");
+            continue;                // Try with next node
+        };
+
+        // Bind the socket
+        if (bind(sockfd, rptr->ai_addr, rptr->ai_addrlen) < 0) {
             close(sockfd);
-            perror("server: bind");
+            perror("he_socket: bind");
             continue;                 // Try with next node
         }
 
-        // socket and bind worked, jump out of the loop
+        // socket, setsockopt and bind worked, jump out of the loop
         break;
     }
 

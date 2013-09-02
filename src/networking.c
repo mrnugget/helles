@@ -11,7 +11,9 @@
 
 #include "networking.h"
 
-int he_socket(char *port)
+#define N_BACKLOG 10
+
+int he_listen(char *port)
 {
     int sockfd, status;
     const int yes = 1;
@@ -63,39 +65,39 @@ int he_socket(char *port)
         return -1;
     }
 
+    if (listen(sockfd, N_BACKLOG) < 0) {
+        perror("he_socket: listen");
+        return -1;
+    }
+
     freeaddrinfo(res);
     return sockfd;
 }
 
-int he_listen(int sockfd)
+int he_accept(int sockfd)
 {
-    int new_fd;
+    int client_fd;
     socklen_t sin_size;
     struct sockaddr_storage client_addr;
 
-    if (listen(sockfd, N_BACKLOG) == -1) {
-        perror("listen");
-        return -1;
-    }
-
     while (1) {
         sin_size = sizeof(client_addr);
-        new_fd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
-        if (new_fd == -1) {
-            perror("accept");
+        client_fd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
+        if (client_fd == -1) {
+            perror("he_accept: accept");
             continue;
         }
 
         if(!fork()) {
             close(sockfd);
-            if (send(new_fd, "Hello, world!", 13, 0) == -1) {
-                perror("send");
+            if (send(client_fd, "Hello, world!", 13, 0) == -1) {
+                perror("he_accept: send");
             }
-            close(new_fd);
+            close(client_fd);
             return 0;
         }
 
-        close(new_fd);
+        close(client_fd);
     }
 
     return 0;

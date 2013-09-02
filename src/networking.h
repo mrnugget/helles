@@ -3,7 +3,7 @@
 
 #define N_BACKLOG 10
 
-int he_socket(char *port);
-int he_listen(int sockfd);
+int he_listen(char *port);
+int he_accept(int sockfd);
 
 #endif

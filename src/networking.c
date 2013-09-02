@@ -74,6 +74,14 @@ int he_listen(char *port)
     return sockfd;
 }
 
+int handle(int client_fd)
+{
+    if (send(client_fd, "Hello world!\n", 13, 0) == -1) {
+        perror("he_accept: send");
+    }
+    close(client_fd);
+}
+
 int he_accept(int sockfd)
 {
     int client_fd;
@@ -89,12 +97,10 @@ int he_accept(int sockfd)
         }
 
         if(!fork()) {
+            // In the child process
             close(sockfd);
-            if (send(client_fd, "Hello, world!", 13, 0) == -1) {
-                perror("he_accept: send");
-            }
-            close(client_fd);
-            return 0;
+            handle(client_fd);
+            exit(0);
         }
 
         close(client_fd);

@@ -1,8 +1,8 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -74,7 +74,7 @@ int he_listen(char *port)
     return sockfd;
 }
 
-int handle(int client_fd)
+void handle(int client_fd)
 {
     if (send(client_fd, "Hello world!\n", 13, 0) == -1) {
         perror("he_accept: send");
@@ -88,7 +88,7 @@ int he_accept(int sockfd)
     socklen_t sin_size;
     struct sockaddr_storage client_addr;
 
-    while (1) {
+    for(;;) {
         sin_size = sizeof(client_addr);
         client_fd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
         if (client_fd == -1) {

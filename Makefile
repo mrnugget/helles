@@ -1,4 +1,4 @@
-CFLAGS=-std=c99 -g -Wall
+CFLAGS=-std=c99 -g3 -Wall -O2
 LDLIBS=
 CC=gcc
 

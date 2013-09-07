@@ -6,10 +6,13 @@ SERVER_NAME=helles
 SERVER_SOURCES=$(wildcard src/**/*.c src/*.c)
 SERVER_OBJECTS=$(patsubst %.c,%.o,$(SERVER_SOURCES))
 
-all: $(SERVER_NAME)
-
 $(SERVER_NAME): $(SERVER_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+
+all: $(SERVER_NAME)
+
+debug: CFLAGS += -DDEBUG
+debug: all
 
 clean:
 	rm -rf $(SERVER_NAME) $(SERVER_OBJECTS)

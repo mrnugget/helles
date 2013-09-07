@@ -108,7 +108,9 @@ void handle(int client_fd)
     buffer[BUFSIZE] = '\0';
 
     printf("Received: %d bytes\n", rc);
-    printf("%s", buffer);
+#ifdef DEBUG
+    printf("%s\n", buffer);
+#endif
 
     if (send(client_fd, response, sizeof(response), 0) == -1) {
         perror("he_accept: send");

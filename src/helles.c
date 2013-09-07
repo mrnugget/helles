@@ -22,7 +22,6 @@ void trap_sig(int sig, void (*sig_handler)(int))
 
 void sigchld_handler(int s)
 {
-    printf("received SIGCHLD\n");
     while(waitpid(-1, NULL, WNOHANG) > 0);
 }
 

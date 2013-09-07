@@ -85,7 +85,7 @@ int he_listen(char *port)
 void handle(int client_fd)
 {
     int rc;
-    char *buffer = malloc(BUFSIZE+1);
+    char *buffer = malloc(sizeof(char) * (BUFSIZE+1));
 
     if (buffer == NULL) {
         fprintf(stderr, "Could not allocate buffer in child\n");

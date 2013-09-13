@@ -33,6 +33,12 @@ void sigint_handler(int s)
 
 int main(int argc, char *argv[])
 {
+    argc--;
+    if (argc < 1) {
+        fprintf(stderr, "usage: %s port\n", argv[0]);
+        exit(1);
+    }
+
     char *port = argv[1];
     int socket;
 

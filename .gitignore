@@ -1,5 +1,6 @@
 helles
 targets.txt
+benchmark_logs
 
 # Object files
 *.o

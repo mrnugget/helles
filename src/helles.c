@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <unistd.h>
 
+#include "helles.h"
 #include "logging.h"
 #include "networking.h"
 
@@ -20,14 +22,16 @@ void trap_sig(int sig, void (*sig_handler)(int))
     }
 }
 
-void sigchld_handler(int s)
-{
-    while(waitpid(-1, NULL, WNOHANG) > 0);
-}
-
 void sigint_handler(int s)
 {
+    int i;
+
     printf("Terminating...\n");
+
+    for (i = 0; i < N_WORKERS; i++) {
+        kill(workerpids[i], SIGTERM);
+    }
+    free(workerpids);
     exit(0);
 }
 
@@ -39,16 +43,38 @@ int main(int argc, char *argv[])
     }
 
     char *port = argv[1];
-    int socket;
+    int socket, i;
 
-    trap_sig(SIGINT, sigint_handler);
-    trap_sig(SIGCHLD, sigchld_handler);
-
+    // Listen on port
     if ((socket = he_listen(port)) < 0) {
         fprintf(stderr, "listen failed");
+        exit(1);
     }
 
-    printf("Listening on port %s...\n", port);
+    // Pre-Fork Children
+    workerpids = calloc(N_WORKERS, sizeof(pid_t));
+    for (i = 0; i < N_WORKERS; i++) {
+        int pid = fork();
+        if (pid == 0) {
+            // Child process
+            he_accept(socket);
+        } else if (pid > 0) {
+            // Parent process
+            workerpids[i] = pid;
+        } else {
+            // Something went wrong while forking
+            fprintf(stderr, "fork failed");
+            exit(1);
+        }
+    }
 
-    he_accept(socket);
+    // Trap signals
+    trap_sig(SIGINT, sigint_handler);
+
+    printf("Helles booted up. %d workers listening on port %s\n",
+            N_WORKERS, port);
+
+    // Wait for all children
+    while(wait(NULL) > 0);
+    exit(0);
 }

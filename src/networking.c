@@ -82,7 +82,7 @@ int he_listen(char *port)
     return sockfd;
 }
 
-void handle(int client_fd)
+static void handle(int client_fd)
 {
     int rc;
     char *buffer = malloc(sizeof(char) * (BUFSIZE+1));
@@ -107,8 +107,8 @@ void handle(int client_fd)
 
     buffer[BUFSIZE] = '\0';
 
-    printf("Received: %d bytes\n", rc);
 #ifdef DEBUG
+    printf("[%d] Received: %d bytes\n", getpid(), rc);
     printf("%s\n", buffer);
 #endif
 
@@ -134,14 +134,7 @@ int he_accept(int sockfd)
             continue;
         }
 
-        if(!fork()) {
-            // In the child process
-            close(sockfd);
-            handle(client_fd);
-            exit(0);
-        }
-
-        close(client_fd);
+        handle(client_fd);
     }
 
     return 0;

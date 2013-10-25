@@ -29,10 +29,10 @@ void sigint_handler(int s)
     printf("Terminating...\n");
 
     for (i = 0; i < N_WORKERS; i++) {
-        kill(workerpids[i], SIGTERM);
+        kill(workers[i].pid, SIGTERM);
     }
 
-    free(workerpids);
+    free(workers);
     exit(0);
 }
 
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     }
 
     // Pre-Fork Children
-    workerpids = calloc(N_WORKERS, sizeof(pid_t));
+    workers = calloc(N_WORKERS, sizeof(struct worker));
     for (i = 0; i < N_WORKERS; i++) {
         int pid = fork();
         if (pid == 0) {
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
             he_accept(socket);
         } else if (pid > 0) {
             // Parent process
-            workerpids[i] = pid;
+            workers[i].pid = pid;
         } else {
             // Something went wrong while forking
             fprintf(stderr, "fork failed");

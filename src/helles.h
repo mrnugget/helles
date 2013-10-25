@@ -3,6 +3,10 @@
 
 #define N_WORKERS 5
 
-static pid_t *workerpids;
+struct worker {
+  pid_t pid;
+};
+
+static struct worker *workers;
 
 #endif

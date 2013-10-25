@@ -31,6 +31,7 @@ void sigint_handler(int s)
     for (i = 0; i < N_WORKERS; i++) {
         kill(workerpids[i], SIGTERM);
     }
+
     free(workerpids);
     exit(0);
 }
@@ -76,5 +77,6 @@ int main(int argc, char *argv[])
 
     // Wait for all children
     while(wait(NULL) > 0);
-    exit(0);
+
+    return 0;
 }

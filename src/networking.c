@@ -126,7 +126,7 @@ int he_accept(int sockfd)
     socklen_t sin_size;
     struct sockaddr_storage client_addr;
 
-    for(;;) {
+    for ( ; ; ) {
         sin_size = sizeof(client_addr);
         client_fd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
         if (client_fd == -1) {

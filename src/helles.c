@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -55,13 +56,21 @@ int main(int argc, char *argv[])
     // Pre-Fork Children
     workers = calloc(N_WORKERS, sizeof(struct worker));
     for (i = 0; i < N_WORKERS; i++) {
-        int pid = fork();
+        int pid, sockfd[2];
+
+        socketpair(AF_LOCAL, SOCK_STREAM, 0, sockfd);
+
+        pid = fork();
+
         if (pid == 0) {
             // Child process
+            close(sockfd[0]);
             he_accept(socket);
         } else if (pid > 0) {
             // Parent process
+            close(sockfd[1]);
             workers[i].pid = pid;
+            workers[i].pipefd = sockfd[0];
         } else {
             // Something went wrong while forking
             fprintf(stderr, "fork failed");

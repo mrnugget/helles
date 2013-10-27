@@ -77,6 +77,9 @@ int main(int argc, char *argv[])
             close(sockfd[0]);         // Close the 'parent-end' of the pipe
             // TODO: do work here (wait for new connection, handle it)
             for (;;) {
+                // 1. Check sockfd[1] for new connection fd
+                // 2. Handle the connection
+                // 3. Write to sockfd[1] that we're ready again
                 sleep(1);
             }
         } else if (pid > 0) {
@@ -108,11 +111,16 @@ int main(int argc, char *argv[])
 
         // Check if new connection needs to be accepted
         if (FD_ISSET(listen_fd, &readset)) {
-            printf("There is a new connection waiting.\n");
-            conn_fd = accept_conn(listen_fd);
-            // This should be sent to available worker, so the worker can
-            // handle this
-            printf("Accepted a new connection, now handling it\n");
+            // Accept the new connection
+            if ((conn_fd = accept_conn(listen_fd)) < 0) {
+                exit(1);
+            }
+
+            // 1. Go through all the children
+            // 2. Check which one is available
+            // 3. Mark child as not available
+            // 4. Send conn_fd to child
+            // 5. Close conn_fd here
             handle_conn(conn_fd);
 
             // If nothing else is readable, jump back to select()

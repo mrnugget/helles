@@ -49,15 +49,20 @@ int main(int argc, char *argv[])
     }
 
     char *port = argv[1];
-    int socket, i;
+    int listen_socket, i, maxfd, sc;
+    fd_set readset, masterset;
 
     // Listen on port
-    if ((socket = he_listen(port)) < 0) {
+    if ((listen_socket = he_listen(port)) < 0) {
         fprintf(stderr, "listen failed");
         exit(1);
     }
 
-    // Pre-Fork Children
+    FD_ZERO(&masterset);
+    FD_SET(listen_socket, &masterset);
+    maxfd = listen_socket;
+
+    // Pre-Fork workers
     workers = calloc(N_WORKERS, sizeof(struct worker));
     for (i = 0; i < N_WORKERS; i++) {
         int pid, sockfd[2];
@@ -65,16 +70,21 @@ int main(int argc, char *argv[])
         socketpair(AF_LOCAL, SOCK_STREAM, 0, sockfd);
 
         pid = fork();
-
         if (pid == 0) {
             // Child process
-            close(sockfd[0]);
-            he_accept(socket);
+            close(listen_socket);     // Worker does not need this
+            close(sockfd[0]);         // Close the 'parent-end' of the pipe
+            // TODO: do work here (wait for new connection, handle it)
+            for (;;) {
+                sleep(1);
+            }
         } else if (pid > 0) {
             // Parent process
             close(sockfd[1]);
             workers[i].pid = pid;
             workers[i].pipefd = sockfd[0];
+            FD_SET(workers[i].pipefd, &masterset); // Add the worker pipe to set
+            maxfd = workers[i].pipefd > maxfd ? workers[i].pipefd : maxfd;
         } else {
             // Something went wrong while forking
             fprintf(stderr, "fork failed");
@@ -88,8 +98,30 @@ int main(int argc, char *argv[])
     printf("Helles booted up. %d workers listening on port %s\n",
             N_WORKERS, port);
 
-    // Wait for all children
-    while(wait(NULL) > 0);
+    for ( ; ; ) {
+        readset = masterset;
+        if ((sc = select(maxfd + 1, &readset, NULL, NULL, NULL)) < 0) {
+            fprintf(stderr, "select failed");
+            exit(1);
+        }
+
+        // Check if new connection needs to be accepted
+        if (FD_ISSET(listen_socket, &readset)) {
+            printf("There is a new connection waiting.\n");
+
+            // If nothing else is readable, jump back to select()
+            if (--sc == 0) {
+                continue;
+            }
+        }
+
+        // Check if message from worker is ready to read
+        for (i = 0; i < N_WORKERS; i++) {
+            if (FD_ISSET(workers[i].pipefd, &readset)) {
+                printf("Child %d sent us a message\n", i);
+            }
+        }
+    }
 
     return 0;
 }

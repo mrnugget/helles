@@ -13,9 +13,13 @@ void trap_sig(int sig, void (*sig_handler)(int))
 {
     struct sigaction sa;
 
-    sa.sa_handler = sig_handler;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
+
+    sa.sa_handler = sig_handler;
+    sa.sa_flags = 0;
+#ifdef SA_RESTART
+    sa.sa_flags |= SA_RESTART;
+#endif
 
     if (sigaction(sig, &sa, NULL) < 0) {
         perror("sigaction");

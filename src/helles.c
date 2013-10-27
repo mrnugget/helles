@@ -49,18 +49,19 @@ int main(int argc, char *argv[])
     }
 
     char *port = argv[1];
-    int listen_socket, i, maxfd, sc;
+    int listen_fd, conn_fd;
+    int i, maxfd, sc;
     fd_set readset, masterset;
 
     // Listen on port
-    if ((listen_socket = he_listen(port)) < 0) {
+    if ((listen_fd = he_listen(port)) < 0) {
         fprintf(stderr, "listen failed");
         exit(1);
     }
 
     FD_ZERO(&masterset);
-    FD_SET(listen_socket, &masterset);
-    maxfd = listen_socket;
+    FD_SET(listen_fd, &masterset);
+    maxfd = listen_fd;
 
     // Pre-Fork workers
     workers = calloc(N_WORKERS, sizeof(struct worker));
@@ -72,7 +73,7 @@ int main(int argc, char *argv[])
         pid = fork();
         if (pid == 0) {
             // Child process
-            close(listen_socket);     // Worker does not need this
+            close(listen_fd);     // Worker does not need this
             close(sockfd[0]);         // Close the 'parent-end' of the pipe
             // TODO: do work here (wait for new connection, handle it)
             for (;;) {
@@ -106,8 +107,13 @@ int main(int argc, char *argv[])
         }
 
         // Check if new connection needs to be accepted
-        if (FD_ISSET(listen_socket, &readset)) {
+        if (FD_ISSET(listen_fd, &readset)) {
             printf("There is a new connection waiting.\n");
+            conn_fd = accept_conn(listen_fd);
+            // This should be sent to available worker, so the worker can
+            // handle this
+            printf("Accepted a new connection, now handling it\n");
+            handle_conn(conn_fd);
 
             // If nothing else is readable, jump back to select()
             if (--sc == 0) {

@@ -82,7 +82,7 @@ int he_listen(char *port)
     return sockfd;
 }
 
-static void handle(int client_fd)
+void handle_conn(int client_fd)
 {
     int rc;
     char *buffer = malloc(sizeof(char) * (BUFSIZE+1));
@@ -113,29 +113,25 @@ static void handle(int client_fd)
 #endif
 
     if (send(client_fd, response, sizeof(response), 0) == -1) {
-        perror("he_accept: send");
+        perror("accept_conn: send");
     }
 
     close(client_fd);
     free(buffer);
 }
 
-int he_accept(int sockfd)
+int accept_conn(int sockfd)
 {
     int client_fd;
     socklen_t sin_size;
     struct sockaddr_storage client_addr;
 
-    for ( ; ; ) {
-        sin_size = sizeof(client_addr);
-        client_fd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
-        if (client_fd == -1) {
-            perror("he_accept: accept");
-            continue;
-        }
-
-        handle(client_fd);
+    sin_size = sizeof(client_addr);
+    client_fd = accept(sockfd, (struct sockaddr *)&client_addr, &sin_size);
+    if (client_fd == -1) {
+        fprintf(stderr, "could not accept");
+        return -1;
     }
 
-    return 0;
+    return client_fd;
 }

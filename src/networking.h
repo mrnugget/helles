@@ -2,6 +2,7 @@
 #define _helles_networking_h
 
 int he_listen(char *port);
-int he_accept(int sockfd);
+int accept_conn(int sockfd);
+void handle_conn(int client_fd);
 
 #endif

@@ -41,6 +41,16 @@ void sigint_handler(int s)
     exit(0);
 }
 
+int send_fd(int socket, int fd) {
+    // See: http://keithp.com/blogs/fd-passing/
+    // See: libancillary
+}
+
+int recv_fd(int socket, int *fd) {
+    // See: http://keithp.com/blogs/fd-passing/
+    // See: libancillary
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 2) {

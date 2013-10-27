@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
     char *port = argv[1];
     int listen_fd, conn_fd;
     int i, maxfd, sc;
+    int ipc_buf, ipc_rc;
     fd_set readset, masterset;
 
     // Listen on port
@@ -78,6 +79,7 @@ int main(int argc, char *argv[])
             // TODO: do work here (wait for new connection, handle it)
             for (;;) {
                 // 1. Check sockfd[1] for new connection fd
+                // @TODO: implement `recv_fd`
                 // 2. Handle the connection
                 // 3. Write to sockfd[1] that we're ready again
                 sleep(1);
@@ -86,6 +88,7 @@ int main(int argc, char *argv[])
             // Parent process
             close(sockfd[1]);
             workers[i].pid = pid;
+            workers[i].available = 1;
             workers[i].pipefd = sockfd[0];
             FD_SET(workers[i].pipefd, &masterset); // Add the worker pipe to set
             maxfd = workers[i].pipefd > maxfd ? workers[i].pipefd : maxfd;
@@ -117,9 +120,19 @@ int main(int argc, char *argv[])
             }
 
             // 1. Go through all the children
-            // 2. Check which one is available
+            for (i = 0; i < N_WORKERS; i++) {
+                // 2. Check which one is available
+                if (workers[i].available) {
+                    // This one is available, jump out of loop, remember i
+                    break;
+                }
+            }
             // 3. Mark child as not available
+            workers[i].available = 0;
+
             // 4. Send conn_fd to child
+            // @TODO: implement `send_fd`
+
             // 5. Close conn_fd here
             handle_conn(conn_fd);
 
@@ -132,7 +145,16 @@ int main(int argc, char *argv[])
         // Check if message from worker is ready to read
         for (i = 0; i < N_WORKERS; i++) {
             if (FD_ISSET(workers[i].pipefd, &readset)) {
-                printf("Child %d sent us a message\n", i);
+                if ((ipc_rc = read(workers[i].pipefd, &ipc_buf, 1)) == 0) {
+                    fprintf(stderr, "Could not read from worker socket");
+                    exit(1);
+                }
+                workers[i].available = 1;
+
+                // No workers ready to read anymore, no need to check them
+                if (--sc == 0) {
+                    break;
+                }
             }
         }
     }

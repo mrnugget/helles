@@ -7,6 +7,7 @@ struct worker {
   pid_t pid;
   int pipefd;
   int available;
+  int count;
 };
 
 static struct worker *workers;

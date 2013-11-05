@@ -227,6 +227,7 @@ int main(int argc, char *argv[])
 
             // 3. Mark child as not available
             workers[i].available = 0;
+            workers[i].count++;
 
             // 4. Send conn_fd to child
             printf("[Master] Sending connection to Worker %d\n", workers[i].pid);

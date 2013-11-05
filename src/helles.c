@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
     // Pre-Fork workers
     workers = calloc(N_WORKERS, sizeof(struct worker));
     for (i = 0; i < N_WORKERS; i++) {
-        int pid, sockfd[2], recvd_conn_fd, ipc_rc;
+        int pid, sockfd[2], recvd_conn_fd;
 
         socketpair(AF_LOCAL, SOCK_STREAM, 0, sockfd);
 

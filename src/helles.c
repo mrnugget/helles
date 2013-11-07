@@ -7,6 +7,8 @@
 
 #include "helles.h"
 #include "logging.h"
+#include "ipc.h"
+#include "worker.h"
 #include "networking.h"
 
 void trap_sig(int sig, void (*sig_handler)(int))
@@ -41,82 +43,6 @@ void sigint_handler(int s)
     exit(0);
 }
 
-int send_fd(int socket, int *fd)
-{
-    // See: http://keithp.com/blogs/fd-passing/
-    // See: libancillary
-    struct msghdr msghdr;
-    struct cmsghdr *cmsg;
-    struct iovec nothing_ptr;
-
-    struct {
-        struct cmsghdr h;
-        int fd[1];
-    } buffer;
-
-    char nothing = '!';
-
-    nothing_ptr.iov_base = &nothing;
-    nothing_ptr.iov_len = 1;
-
-    msghdr.msg_name = NULL;
-    msghdr.msg_namelen = 0;
-    msghdr.msg_iov = &nothing_ptr;
-    msghdr.msg_iovlen = 1;
-    msghdr.msg_flags = 0;
-    msghdr.msg_control = &buffer;
-    msghdr.msg_controllen = sizeof(struct cmsghdr) + sizeof(int);
-
-    cmsg = CMSG_FIRSTHDR(&msghdr);
-    cmsg->cmsg_len = msghdr.msg_controllen;
-    cmsg->cmsg_level = SOL_SOCKET;
-    cmsg->cmsg_type = SCM_RIGHTS;
-    *((int *)CMSG_DATA(cmsg)) = *fd;
-
-    return(sendmsg(socket, &msghdr, 0) >= 0 ? 0 : -1);
-}
-
-int recv_fd(int socket, int *fd)
-{
-    // See: http://keithp.com/blogs/fd-passing/
-    // See: libancillary
-    struct msghdr msghdr;
-    struct cmsghdr *cmsg;
-    struct iovec nothing_ptr;
-
-    struct {
-        struct cmsghdr h;
-        int fd[1];
-    } buffer;
-
-    char nothing;
-
-    nothing_ptr.iov_base = &nothing;
-    nothing_ptr.iov_len = 1;
-
-    msghdr.msg_name = NULL;
-    msghdr.msg_namelen = 0;
-    msghdr.msg_iov = &nothing_ptr;
-    msghdr.msg_iovlen = 1;
-    msghdr.msg_flags = 0;
-    msghdr.msg_control = &buffer;
-    msghdr.msg_controllen = sizeof(struct cmsghdr) + sizeof(int);
-
-    cmsg = CMSG_FIRSTHDR(&msghdr);
-    cmsg->cmsg_len = msghdr.msg_controllen;
-    cmsg->cmsg_level = SOL_SOCKET;
-    cmsg->cmsg_type = SCM_RIGHTS;
-
-    *(int *)CMSG_DATA(cmsg) = -1;
-
-    if (recvmsg(socket, &msghdr, 0) < 0) {
-        return -1;
-    } else {
-        *fd = *(int *)CMSG_DATA(cmsg);
-        return 0;
-    }
-}
-
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
@@ -143,7 +69,7 @@ int main(int argc, char *argv[])
     // Pre-Fork workers
     workers = calloc(N_WORKERS, sizeof(struct worker));
     for (i = 0; i < N_WORKERS; i++) {
-        int pid, sockfd[2], recvd_conn_fd;
+        int pid, sockfd[2];
 
         socketpair(AF_LOCAL, SOCK_STREAM, 0, sockfd);
 
@@ -153,27 +79,7 @@ int main(int argc, char *argv[])
             close(listen_fd); // Worker does not need this
             close(sockfd[0]); // Close the 'parent-end' of the pipe
 
-            for (;;) {
-                // 1. Check sockfd[1] for new connection fd
-                printf("[Worker %d] Waiting for new connection\n",
-                        getpid());
-
-                if (recv_fd(sockfd[1], &recvd_conn_fd) < 0) {
-                    fprintf(stderr, "Could not receive recvd_conn_fd\n");
-                    exit(1);
-                }
-                printf("[Worker %d] Received new connection: %d\n",
-                        getpid(), recvd_conn_fd);
-
-                handle_conn(recvd_conn_fd);
-
-                printf("[Worker %d] Done\n", getpid());
-                // 3. Write to sockfd[1] that we're ready again
-                if ((ipc_rc = write(sockfd[1], "", 1)) != 1) {
-                    fprintf(stderr, "Could write available-signal to socket\n");
-                    exit(1);
-                }
-            }
+            worker_loop(sockfd[1]);
         } else if (pid > 0) {
             // Parent process
             close(sockfd[1]);

@@ -1,14 +1,9 @@
 #ifndef _helles_helles_h
 #define _helles_helles_h
 
-#define N_WORKERS 5
+#include "worker.h"
 
-struct worker {
-  pid_t pid;
-  int pipefd;
-  int available;
-  int count;
-};
+#define N_WORKERS 5
 
 static struct worker *workers;
 

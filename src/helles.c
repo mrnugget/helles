@@ -11,37 +11,14 @@
 #include "worker.h"
 #include "networking.h"
 
-void trap_sig(int sig, void (*sig_handler)(int))
-{
-    struct sigaction sa;
+void trap_sig(int sig, void (*sig_handler)(int));
+void sigint_handler(int s);
 
-    sigemptyset(&sa.sa_mask);
+void err_kill_exit(char *msg);
 
-    sa.sa_handler = sig_handler;
-    sa.sa_flags = 0;
-#ifdef SA_RESTART
-    sa.sa_flags |= SA_RESTART;
-#endif
-
-    if (sigaction(sig, &sa, NULL) < 0) {
-        perror("sigaction");
-        exit(1);
-    }
-}
-
-void sigint_handler(int s)
-{
-    int i;
-
-    printf("Terminating...\n");
-
-    for (i = 0; i < N_WORKERS; i++) {
-        kill(workers[i].pid, SIGTERM);
-    }
-
-    free(workers);
-    exit(0);
-}
+int available_worker(int n, struct worker *workers);
+void kill_workers(int n, struct worker *workers);
+int spawn_workers(int n, struct worker *workers, int listen_fd);
 
 int main(int argc, char *argv[])
 {
@@ -62,37 +39,21 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    // Pre-Fork workers
+    workers = calloc(N_WORKERS, sizeof(struct worker));
+    if (spawn_workers(N_WORKERS, workers, listen_fd) < 0) {
+        err_kill_exit("spawning_workers failed");
+    }
+
+    // Prepare sets for select(2)
     FD_ZERO(&masterset);
     FD_SET(listen_fd, &masterset);
     maxfd = listen_fd;
 
-    // Pre-Fork workers
-    workers = calloc(N_WORKERS, sizeof(struct worker));
+    // Add workers IPC pipes to masterset
     for (i = 0; i < N_WORKERS; i++) {
-        int pid, sockfd[2];
-
-        socketpair(AF_LOCAL, SOCK_STREAM, 0, sockfd);
-
-        pid = fork();
-        if (pid == 0) {
-            // Child process
-            close(listen_fd); // Worker does not need this
-            close(sockfd[0]); // Close the 'parent-end' of the pipe
-
-            worker_loop(sockfd[1]);
-        } else if (pid > 0) {
-            // Parent process
-            close(sockfd[1]);
-            workers[i].pid = pid;
-            workers[i].available = 1;
-            workers[i].pipefd = sockfd[0];
-            FD_SET(workers[i].pipefd, &masterset); // Add the worker pipe to set
-            maxfd = workers[i].pipefd > maxfd ? workers[i].pipefd : maxfd;
-        } else {
-            // Something went wrong while forking
-            fprintf(stderr, "fork failed");
-            exit(1);
-        }
+        FD_SET(workers[i].pipefd, &masterset);
+        maxfd = workers[i].pipefd > maxfd ? workers[i].pipefd : maxfd;
     }
 
     // Trap signals
@@ -104,8 +65,7 @@ int main(int argc, char *argv[])
     for ( ; ; ) {
         readset = masterset;
         if ((sc = select(maxfd + 1, &readset, NULL, NULL, NULL)) < 0) {
-            fprintf(stderr, "select failed");
-            exit(1);
+            err_kill_exit("select failed");
         }
 
         // Check if new connection needs to be accepted
@@ -115,20 +75,8 @@ int main(int argc, char *argv[])
                 exit(1);
             }
 
-            // 1. Go through all the children
-            for (i = 0; i < N_WORKERS; i++) {
-                // 2. Check which one is available
-                if (workers[i].available) {
-                    // This one is available, jump out of loop, remember i
-                    break;
-                }
-            }
-            if (i == N_WORKERS) {
-                fprintf(stderr, "No available worker found\n");
-                for (i = 0; i < N_WORKERS; i++) {
-                    kill(workers[i].pid, SIGTERM);
-                }
-                exit(1);
+            if ((i = available_worker(N_WORKERS, workers)) == N_WORKERS) {
+                err_kill_exit("No available worker found");
             }
 
             // 3. Mark child as not available
@@ -167,6 +115,91 @@ int main(int argc, char *argv[])
                     break;
                 }
             }
+        }
+    }
+
+    return 0;
+}
+
+void trap_sig(int sig, void (*sig_handler)(int))
+{
+    struct sigaction sa;
+
+    sigemptyset(&sa.sa_mask);
+
+    sa.sa_handler = sig_handler;
+    sa.sa_flags = 0;
+#ifdef SA_RESTART
+    sa.sa_flags |= SA_RESTART;
+#endif
+
+    if (sigaction(sig, &sa, NULL) < 0) {
+        perror("sigaction");
+        exit(1);
+    }
+}
+
+void sigint_handler(int s)
+{
+    printf("Terminating...\n");
+
+    kill_workers(N_WORKERS, workers);
+    free(workers);
+
+    exit(0);
+}
+
+void err_kill_exit(char *msg)
+{
+    fprintf(stderr, "%s\n", msg);
+    kill_workers(N_WORKERS, workers);
+    exit(1);
+}
+
+int available_worker(int n, struct worker *workers)
+{
+    int i;
+
+    for (i = 0; i < n; i++) {
+        if (workers[i].available) {
+            return i;
+        }
+    }
+
+    return n;
+}
+
+void kill_workers(int n, struct worker *workers)
+{
+    int i;
+
+    for (i = 0; i < n; i++) {
+        kill(workers[i].pid, SIGTERM);
+    }
+}
+
+int spawn_workers(int n, struct worker *workers, int listen_fd)
+{
+    int i, pid, sockfd[2];
+
+    for (i = 0; i < n; i++) {
+        socketpair(AF_LOCAL, SOCK_STREAM, 0, sockfd);
+
+        pid = fork();
+        if (pid == 0) {
+            // Child process
+            close(listen_fd); // Worker does not need this
+            close(sockfd[0]); // Close the 'parent-end' of the pipe
+
+            worker_loop(sockfd[1]);
+        } else if (pid > 0) {
+            // Parent process
+            close(sockfd[1]);
+            workers[i].pid = pid;
+            workers[i].available = 1;
+            workers[i].pipefd = sockfd[0];
+        } else {
+            return -1;
         }
     }
 

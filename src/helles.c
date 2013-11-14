@@ -16,6 +16,7 @@ void sigint_handler(int s);
 
 void err_kill_exit(char *msg);
 
+void send_conn_worker(int n, struct worker *workers, int fd);
 int available_worker(int n, struct worker *workers);
 void kill_workers(int n, struct worker *workers);
 int spawn_workers(int n, struct worker *workers, int listen_fd);
@@ -68,34 +69,13 @@ int main(int argc, char *argv[])
             err_kill_exit("select failed");
         }
 
-        // Check if new connection needs to be accepted
         if (FD_ISSET(listen_fd, &readset)) {
-            // Accept the new connection
             if ((conn_fd = accept_conn(listen_fd)) < 0) {
                 exit(1);
             }
 
-            if ((i = available_worker(N_WORKERS, workers)) == N_WORKERS) {
-                err_kill_exit("No available worker found");
-            }
+            send_conn_worker(N_WORKERS, workers, conn_fd);
 
-            // 3. Mark child as not available
-            workers[i].available = 0;
-            workers[i].count++;
-
-            // 4. Send conn_fd to child
-            printf("[Master] Sending connection to Worker %d\n", workers[i].pid);
-
-            if (send_fd(workers[i].pipefd, &conn_fd) < 0) {
-                fprintf(stderr, "Could not send conn_fd to worker\n");
-            }
-
-            printf("[Master] Sent to Worker %d\n", workers[i].pid);
-
-            // 5. Close conn_fd here
-            close(conn_fd);
-
-            // If nothing else is readable, jump back to select()
             if (--sc == 0) {
                 continue;
             }
@@ -105,8 +85,7 @@ int main(int argc, char *argv[])
         for (i = 0; i < N_WORKERS; i++) {
             if (FD_ISSET(workers[i].pipefd, &readset)) {
                 if ((ipc_rc = read(workers[i].pipefd, &ipc_buf, 1)) == 0) {
-                    fprintf(stderr, "Could not read from worker socket");
-                    exit(1);
+                    err_kill_exit("Could not read from worker socket");
                 }
                 workers[i].available = 1;
 
@@ -154,6 +133,28 @@ void err_kill_exit(char *msg)
     fprintf(stderr, "%s\n", msg);
     kill_workers(N_WORKERS, workers);
     exit(1);
+}
+
+void send_conn_worker(int n, struct worker *workers, int conn_fd)
+{
+    int i;
+
+    if ((i = available_worker(n, workers)) == n) {
+        err_kill_exit("No available worker found");
+    }
+
+    workers[i].available = 0;
+    workers[i].count++;
+
+    printf("[Master] Sending connection to Worker %d\n", workers[i].pid);
+
+    if (send_fd(workers[i].pipefd, &conn_fd) < 0) {
+        fprintf(stderr, "Could not send conn_fd to worker\n");
+    }
+
+    printf("[Master] Sent to Worker %d\n", workers[i].pid);
+
+    close(conn_fd);
 }
 
 int available_worker(int n, struct worker *workers)

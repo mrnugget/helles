@@ -96,12 +96,14 @@ void handle_conn(int client_fd)
     if ((rc = recv(client_fd, buffer, BUFSIZE-1, 0)) == -1) {
         fprintf(stderr, "Error reading from client\n");
         close(client_fd);
+        free(buffer);
         return;
     }
 
     if (rc == 0) {
         printf("Client closed the connection");
         close(client_fd);
+        free(buffer);
         return;
     }
 

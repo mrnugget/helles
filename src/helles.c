@@ -16,8 +16,8 @@ void sigint_handler(int s);
 
 void err_kill_exit(char *msg);
 
-void send_conn_worker(int n, struct worker *workers, int fd);
-int available_worker(int n, struct worker *workers);
+int send_conn_worker(int n, struct worker *workers, int last_used, int fd);
+int available_worker(int n, struct worker *workers, int last_used);
 void kill_workers(int n, struct worker *workers);
 int spawn_workers(int n, struct worker *workers, int listen_fd);
 
@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
     int i, maxfd, sc;
     int ipc_buf, ipc_rc;
     fd_set readset, masterset;
+    int last_used_worker = 0;
 
     // Listen on port
     if ((listen_fd = he_listen(port)) < 0) {
@@ -71,10 +72,15 @@ int main(int argc, char *argv[])
 
         if (FD_ISSET(listen_fd, &readset)) {
             if ((conn_fd = accept_conn(listen_fd)) < 0) {
+                // TODO: use err_kill_exit here
                 exit(1);
             }
 
-            send_conn_worker(N_WORKERS, workers, conn_fd);
+            last_used_worker = send_conn_worker(N_WORKERS, workers,
+                    last_used_worker, conn_fd);
+            if (last_used_worker < 0) {
+                err_kill_exit("send_conn_worker failed");
+            }
 
             if (--sc == 0) {
                 continue;
@@ -135,13 +141,9 @@ void err_kill_exit(char *msg)
     exit(1);
 }
 
-void send_conn_worker(int n, struct worker *workers, int conn_fd)
+int send_conn_worker(int n, struct worker *workers, int last_used, int conn_fd)
 {
-    int i;
-
-    if ((i = available_worker(n, workers)) == n) {
-        err_kill_exit("No available worker found");
-    }
+    int i = available_worker(n, workers, last_used);
 
     workers[i].available = 0;
     workers[i].count++;
@@ -150,24 +152,25 @@ void send_conn_worker(int n, struct worker *workers, int conn_fd)
 
     if (send_fd(workers[i].pipefd, &conn_fd) < 0) {
         fprintf(stderr, "Could not send conn_fd to worker\n");
+        return -1;
     }
 
     printf("[Master] Sent to Worker %d\n", workers[i].pid);
 
     close(conn_fd);
+
+    return i;
 }
 
-int available_worker(int n, struct worker *workers)
+int available_worker(int n, struct worker *workers, int last_used)
 {
-    int i;
+    int i = last_used + 1;
 
-    for (i = 0; i < n; i++) {
-        if (workers[i].available) {
-            return i;
-        }
+    while (!workers[(i % 5)].available) {
+        i++;
     }
 
-    return n;
+    return i % 5;
 }
 
 void kill_workers(int n, struct worker *workers)

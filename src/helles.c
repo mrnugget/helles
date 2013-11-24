@@ -163,13 +163,11 @@ int send_conn_worker(int n, struct worker *workers, int last_used, int conn_fd)
 
 int available_worker(int n, struct worker *workers, int last_used)
 {
-    int i = last_used + 1;
+    do {
+        last_used++;
+    } while (!workers[(last_used % n)].available);
 
-    while (!workers[(i % 5)].available) {
-        i++;
-    }
-
-    return i % 5;
+    return last_used % n;
 }
 
 void kill_workers(int n, struct worker *workers)

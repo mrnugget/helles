@@ -147,14 +147,18 @@ int send_conn_worker(int n, struct worker *workers, int last_used, int conn_fd)
     workers[i].available = 0;
     workers[i].count++;
 
+#ifdef DEBUG
     printf("[Master] Sending connection to Worker %d\n", workers[i].pid);
+#endif
 
     if (send_fd(workers[i].pipefd, &conn_fd) < 0) {
         fprintf(stderr, "Could not send conn_fd to worker\n");
         return -1;
     }
 
+#ifdef DEBUG
     printf("[Master] Sent to Worker %d\n", workers[i].pid);
+#endif
 
     close(conn_fd);
 

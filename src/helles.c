@@ -72,8 +72,7 @@ int main(int argc, char *argv[])
 
         if (FD_ISSET(listen_fd, &readset)) {
             if ((conn_fd = accept_conn(listen_fd)) < 0) {
-                // TODO: use err_kill_exit here
-                exit(1);
+                err_kill_exit("accept_conn failed");
             }
 
             last_used_worker = send_conn_worker(N_WORKERS, workers,

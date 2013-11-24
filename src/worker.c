@@ -5,10 +5,13 @@
 #include "ipc.h"
 #include "worker.h"
 
+#define BUFSIZE 1024
+
 void worker_loop(int ipc_sock)
 {
     int recvd_conn_fd, ipc_rc;
     int pid = getpid();
+    char buffer[BUFSIZE];
 
     for (;;) {
         printf("[Worker %d] Waiting for new connection\n", pid);
@@ -20,7 +23,7 @@ void worker_loop(int ipc_sock)
 
         printf("[Worker %d] Received new connection: %d\n", pid, recvd_conn_fd);
 
-        handle_conn(recvd_conn_fd);
+        handle_conn(recvd_conn_fd, buffer, BUFSIZE);
 
         printf("[Worker %d] Done\n", pid);
 

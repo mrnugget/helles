@@ -3,6 +3,6 @@
 
 int he_listen(char *port);
 int accept_conn(int sockfd);
-void handle_conn(int client_fd);
+void handle_conn(int client_fd, char *buffer, int bufsize);
 
 #endif

@@ -12,7 +12,6 @@
 #include "networking.h"
 
 #define N_BACKLOG 10
-#define BUFSIZE 1024
 
 char response[] = "HTTP/1.1 200 OK\r\n"
 "Content-Type: text/html; charset=UTF-8\r\n\r\n"
@@ -82,32 +81,23 @@ int he_listen(char *port)
     return sockfd;
 }
 
-void handle_conn(int client_fd)
+void handle_conn(int client_fd, char *buffer, int bufsize)
 {
     int rc;
-    char *buffer = malloc(sizeof(char) * (BUFSIZE+1));
 
-    if (buffer == NULL) {
-        fprintf(stderr, "Could not allocate buffer in child\n");
-        close(client_fd);
-        return;
-    }
-
-    if ((rc = recv(client_fd, buffer, BUFSIZE-1, 0)) == -1) {
+    if ((rc = recv(client_fd, buffer, bufsize, 0)) == -1) {
         fprintf(stderr, "Error reading from client\n");
         close(client_fd);
-        free(buffer);
         return;
     }
 
     if (rc == 0) {
         printf("Client closed the connection");
         close(client_fd);
-        free(buffer);
         return;
     }
 
-    buffer[BUFSIZE] = '\0';
+    buffer[bufsize - 1] = '\0';
 
 #ifdef DEBUG
     printf("[%d] Received: %d bytes\n", getpid(), rc);
@@ -119,7 +109,6 @@ void handle_conn(int client_fd)
     }
 
     close(client_fd);
-    free(buffer);
 }
 
 int accept_conn(int sockfd)

@@ -1,12 +1,15 @@
 #include "fmacros.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <arpa/inet.h>
 
 #include "networking.h"
 #include "ipc.h"
 #include "worker.h"
 
 #define BUFSIZE 1024
+
+static void echofd(int fd, char *buf, int bufn);
 
 void worker_loop(int ipc_sock)
 {
@@ -30,8 +33,7 @@ void worker_loop(int ipc_sock)
         printf("[Worker %d] Received new connection: %d\n", pid, recvd_conn_fd);
 #endif
 
-        handle_conn(recvd_conn_fd, buffer, BUFSIZE);
-
+        echofd(recvd_conn_fd, buffer, BUFSIZE);
 #ifdef DEBUG
         printf("[Worker %d] Done\n", pid);
 #endif
@@ -41,4 +43,27 @@ void worker_loop(int ipc_sock)
             exit(1);
         }
     }
+}
+
+static void echofd(int fd, char *buf, int bufsize)
+{
+    int nread;
+
+    do {
+        if ((nread = recv(fd, buf, bufsize, 0)) < 0) {
+            fprintf(stderr, "echo: recv failed\n");
+            break;
+        }
+
+#ifdef DEBUG
+        printf("%s", buf);
+#endif
+        if (send(fd, buf, nread, 0) != nread) {
+            fprintf(stderr, "echo: send failed\n");
+            break;
+        }
+    } while (nread > 0);
+
+    close(fd);
+    return;
 }

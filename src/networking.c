@@ -15,13 +15,6 @@
 
 #define N_BACKLOG 10
 
-char response[] = "HTTP/1.1 200 OK\r\n"
-"Content-Type: text/html; charset=UTF-8\r\n\r\n"
-"<html>"
-"<head><title>Bye-bye baby bye-bye</title>"
-"</head>"
-"<body><h1>Goodbye, world!</h1></body></html>\r\n";
-
 int he_listen(char *port)
 {
     int sockfd, status;
@@ -81,36 +74,6 @@ int he_listen(char *port)
 
     freeaddrinfo(res);
     return sockfd;
-}
-
-void handle_conn(int client_fd, char *buffer, int bufsize)
-{
-    int rc;
-
-    if ((rc = recv(client_fd, buffer, bufsize, 0)) == -1) {
-        fprintf(stderr, "Error reading from client\n");
-        close(client_fd);
-        return;
-    }
-
-    if (rc == 0) {
-        printf("Client closed the connection");
-        close(client_fd);
-        return;
-    }
-
-    buffer[bufsize - 1] = '\0';
-
-#ifdef DEBUG
-    printf("[%d] Received: %d bytes\n", getpid(), rc);
-    printf("%s\n", buffer);
-#endif
-
-    if (send(client_fd, response, sizeof(response), 0) == -1) {
-        perror("accept_conn: send");
-    }
-
-    close(client_fd);
 }
 
 int accept_conn(int sockfd)

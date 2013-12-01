@@ -3,6 +3,8 @@
 
 #include <unistd.h>
 
+#define BUFSIZE 1024
+
 struct worker {
   pid_t pid;
   int pipefd;

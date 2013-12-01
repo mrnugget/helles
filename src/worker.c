@@ -7,8 +7,6 @@
 #include "ipc.h"
 #include "worker.h"
 
-#define BUFSIZE 1024
-
 static void echofd(int fd, char *buf, int bufn);
 
 void worker_loop(int ipc_sock)

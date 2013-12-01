@@ -13,8 +13,6 @@
 
 #include "networking.h"
 
-#define N_BACKLOG 10
-
 int he_listen(char *port)
 {
     int sockfd, status;

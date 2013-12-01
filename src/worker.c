@@ -12,10 +12,11 @@ static void echofd(int fd, char *buf, int bufn);
 void worker_loop(int ipc_sock)
 {
     int recvd_conn_fd, ipc_rc;
+    char buffer[BUFSIZE];
+
 #ifdef DEBUG
     int pid = getpid();
 #endif
-    char buffer[BUFSIZE];
 
     for (;;) {
 #ifdef DEBUG

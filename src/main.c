@@ -8,7 +8,7 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "helles.h"
+#include "main.h"
 #include "logging.h"
 #include "ipc.h"
 #include "worker.h"

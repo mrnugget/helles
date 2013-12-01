@@ -1,5 +1,5 @@
-#ifndef _helles_helles_h
-#define _helles_helles_h
+#ifndef _helles_main_h
+#define _helles_main_h
 
 #include "worker.h"
 

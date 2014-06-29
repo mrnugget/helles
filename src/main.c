@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
     int ipc_buf, ipc_rc;
     fd_set readset, masterset;
     int last_used_worker = 0;
+    int available = N_WORKERS;
 
     // Listen on port
     if ((listen_fd = he_listen(port)) < 0) {
@@ -69,6 +70,12 @@ int main(int argc, char *argv[])
 
     for ( ; ; ) {
         readset = masterset;
+        if (available <= 0) {
+            // No worker is available. So do not accept until we have available
+            // worker
+            FD_CLR(listen_fd, &readset);
+        }
+
         if ((sc = select(maxfd + 1, &readset, NULL, NULL, NULL)) < 0) {
             err_kill_exit("select failed");
         }
@@ -83,6 +90,7 @@ int main(int argc, char *argv[])
             if (last_used_worker < 0) {
                 err_kill_exit("send_conn_worker failed");
             }
+            available--;
 
             if (--sc == 0) {
                 continue;
@@ -96,6 +104,7 @@ int main(int argc, char *argv[])
                     err_kill_exit("Could not read from worker socket");
                 }
                 workers[i].available = 1;
+                available++;
 
                 // No workers ready to read anymore, no need to check them
                 if (--sc == 0) {

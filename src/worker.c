@@ -10,13 +10,10 @@
 
 static void handle_connection(int fd, char *buf, int bufn);
 
-char *response_ok =
-"HTTP/1.1 200 OK\n"
-"Server: Helles 0.0.1\n"
-"Content-Type: text/plain\n"
-"Content-Length: 32\n"
-"\n"
-"It's a unix system! I know this!\n";
+char *response_ok = "HTTP/1.1 200 OK\r\n"
+"Content-Length: 32\r\n"
+"Connection: close\r\n\r\n"
+"It's a UNIX system! I know this!";
 
 void worker_loop(int ipc_sock)
 {

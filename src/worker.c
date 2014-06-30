@@ -59,6 +59,8 @@ static void handle_connection(int fd, char *buf, int bufsize)
     int nread;
     int response_len = strlen(response_ok);
 
+    memset(buf, '\0', bufsize);
+
     do {
         if ((nread = recv(fd, buf, bufsize, 0)) < 0) {
             fprintf(stderr, "handle_connection: recv failed\n");

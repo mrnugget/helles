@@ -14,7 +14,7 @@ char *response_ok =
 "HTTP/1.1 200 OK\n"
 "Server: Helles 0.0.1\n"
 "Content-Type: text/plain\n"
-"Content-Length: 33\n"
+"Content-Length: 32\n"
 "\n"
 "It's a unix system! I know this!\n";
 

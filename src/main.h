@@ -3,7 +3,7 @@
 
 #include "worker.h"
 
-#define N_WORKERS 5
+#define N_WORKERS 10
 
 static struct worker *workers;
 

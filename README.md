@@ -36,4 +36,6 @@ Change `N_WORKERS` in `main.h`
 
 ## Licencse
 
-MIT
+All code except `src/http_parser.c` and `src/http_parser.h`: MIT
+
+The http_parser is under copyright of Joyent: [http_parser](https://github.com/joyent/http-parser)

@@ -20,29 +20,13 @@ void worker_loop(int ipc_sock)
     int recvd_conn_fd, ipc_rc;
     char buffer[BUFSIZE];
 
-#ifdef DEBUG
-    int pid = getpid();
-#endif
-
     for (;;) {
-#ifdef DEBUG
-        printf("[Worker %d] Waiting for new connection\n", pid);
-#endif
-
         if (recv_fd(ipc_sock, &recvd_conn_fd) < 0) {
             fprintf(stderr, "Could not receive recvd_conn_fd\n");
             exit(1);
         }
 
-#ifdef DEBUG
-        printf("[Worker %d] Received new connection: %d\n", pid, recvd_conn_fd);
-#endif
-
         handle_connection(recvd_conn_fd, buffer, BUFSIZE);
-
-#ifdef DEBUG
-        printf("[Worker %d] Done\n", pid);
-#endif
 
         if ((ipc_rc = write(ipc_sock, "", 1)) != 1) {
             fprintf(stderr, "Could write available-signal to socket\n");
@@ -68,10 +52,6 @@ static void handle_connection(int fd, char *buf, int bufsize)
             // Received a CRLF. Hacky, but works for responding with 200 OK.
             break;
         }
-
-#ifdef DEBUG
-        printf("%s", buf);
-#endif
     } while (nread > 0);
 
     if (send(fd, response_ok, response_len, 0) != response_len) {

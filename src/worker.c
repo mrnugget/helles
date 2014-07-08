@@ -8,31 +8,15 @@
 #include "ipc.h"
 #include "worker.h"
 
-static void handle_connection(int fd, char *buf, int bufn);
-
 char *response_ok = "HTTP/1.1 200 OK\r\n"
 "Content-Length: 32\r\n"
 "Connection: close\r\n\r\n"
 "It's a UNIX system! I know this!";
 
-void worker_loop(int ipc_sock)
+static void err_exit(char *msg)
 {
-    int recvd_conn_fd, ipc_rc;
-    char buffer[BUFSIZE];
-
-    for (;;) {
-        if (recv_fd(ipc_sock, &recvd_conn_fd) < 0) {
-            fprintf(stderr, "Could not receive recvd_conn_fd\n");
-            exit(1);
-        }
-
-        handle_connection(recvd_conn_fd, buffer, BUFSIZE);
-
-        if ((ipc_rc = write(ipc_sock, "", 1)) != 1) {
-            fprintf(stderr, "Could write available-signal to socket\n");
-            exit(1);
-        }
-    }
+    fprintf(stderr, "%s\n", msg);
+    exit(1);
 }
 
 static void handle_connection(int fd, char *buf, int bufsize)
@@ -60,4 +44,22 @@ static void handle_connection(int fd, char *buf, int bufsize)
 
     close(fd);
     return;
+}
+
+void worker_loop(int ipc_sock)
+{
+    int recvd_conn_fd;
+    char buffer[BUFSIZE];
+
+    for (;;) {
+        if (recv_fd(ipc_sock, &recvd_conn_fd) < 0) {
+            err_exit("Could not receive recvd_conn_fd");
+        }
+
+        handle_connection(recvd_conn_fd, buffer, BUFSIZE);
+
+        if (write(ipc_sock, "", 1) != 1) {
+            err_exit("Could write available-signal to socket");
+        }
+    }
 }

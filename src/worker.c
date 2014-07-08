@@ -20,6 +20,20 @@ struct connection {
     char buffer[BUFSIZE];
 };
 
+struct connection *new_connection()
+{
+    struct connection *c = malloc(sizeof(struct connection));
+    if (c == NULL) {
+        return NULL;
+    }
+
+    c->complete = 0;
+    c->bufsize = BUFSIZE;
+    memset(c->buffer, '\0', c->bufsize);
+
+    return c;
+}
+
 int message_complete_cb(http_parser *p)
 {
     struct connection *c = p->data;
@@ -42,11 +56,11 @@ static void handle_connection(int fd, http_parser *p)
     int nread, nparsed;
     int response_len = strlen(response_ok);
 
-    struct connection *c = malloc(sizeof(struct connection));
-    if (c == NULL) err_exit("Could not allocate connection");
-    c->complete = 0;
-    c->bufsize = BUFSIZE;
-    memset(c->buffer, '\0', c->bufsize);
+    struct connection *c = new_connection();
+    if (c == NULL) {
+        fprintf(stderr, "Could not allocate connection\n");
+        return;
+    }
 
     p->data = c;
 

@@ -16,11 +16,12 @@ char *response_ok = "HTTP/1.1 200 OK\r\n"
 
 struct connection {
     int complete;
+    int fd;
     int bufsize;
     char buffer[BUFSIZE];
 };
 
-struct connection *new_connection()
+struct connection *new_connection(int fd)
 {
     struct connection *c = malloc(sizeof(struct connection));
     if (c == NULL) {
@@ -28,6 +29,7 @@ struct connection *new_connection()
     }
 
     c->complete = 0;
+    c->fd = fd;
     c->bufsize = BUFSIZE;
     memset(c->buffer, '\0', c->bufsize);
 
@@ -51,29 +53,43 @@ static void err_exit(char *msg)
     exit(1);
 }
 
-static void handle_connection(int fd, http_parser *p)
+static int read_request(http_parser *p, struct connection *c)
 {
     int nread, nparsed;
-    int response_len = strlen(response_ok);
-
-    struct connection *c = new_connection();
-    if (c == NULL) err_exit("Could not allocate connection\n");
-
-    p->data = c;
 
     do {
-        if ((nread = recv(fd, c->buffer, c->bufsize, 0)) < 0) {
+        nread = recv(c->fd, c->buffer, c->bufsize, 0)
+        if (nread < 0) {
             fprintf(stderr, "Could not read from connection socket\n");
-            break;
+            return -1;
         }
 
         nparsed = http_parser_execute(p, &settings, c->buffer, nread);
         if (nparsed != nread) {
             fprintf(stderr, "nparsed != nread\n");
-            break;
+            return -1;
         }
         if (c->complete) break;
     } while (nread > 0);
+
+    return 0;
+}
+
+static void handle_connection(int fd, http_parser *p)
+{
+    int response_len = strlen(response_ok);
+
+    struct connection *c = new_connection(fd);
+    if (c == NULL) err_exit("Could not allocate connection\n");
+
+    p->data = c;
+
+    if (read_request(p, c) < 0) {
+        fprintf(stderr, "Could not read request\n");
+        free(c);
+        close(fd);
+        return;
+    }
 
     if (send(fd, response_ok, response_len, 0) != response_len) {
         fprintf(stderr, "handle_connection: send failed\n");

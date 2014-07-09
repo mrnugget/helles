@@ -63,7 +63,7 @@ static void handle_connection(int fd, http_parser *p)
 
     do {
         if ((nread = recv(fd, c->buffer, c->bufsize, 0)) < 0) {
-            fprintf(stderr, "handle_connection: recv failed\n");
+            fprintf(stderr, "Could not read from connection socket\n");
             break;
         }
 

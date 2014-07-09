@@ -57,10 +57,7 @@ static void handle_connection(int fd, http_parser *p)
     int response_len = strlen(response_ok);
 
     struct connection *c = new_connection();
-    if (c == NULL) {
-        fprintf(stderr, "Could not allocate connection\n");
-        return;
-    }
+    if (c == NULL) err_exit("Could not allocate connection\n");
 
     p->data = c;
 

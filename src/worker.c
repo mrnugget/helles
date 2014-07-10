@@ -58,7 +58,7 @@ static int read_request(http_parser *p, struct connection *c)
     int nread, nparsed;
 
     do {
-        nread = recv(c->fd, c->buffer, c->bufsize, 0)
+        nread = recv(c->fd, c->buffer, c->bufsize, 0);
         if (nread < 0) {
             fprintf(stderr, "Could not read from connection socket\n");
             return -1;

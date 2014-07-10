@@ -18,7 +18,7 @@ struct connection {
     int complete;
     int fd;
     int bufsize;
-    char buffer[BUFSIZE];
+    char *buffer;
 };
 
 struct connection *new_connection(int fd)
@@ -30,10 +30,24 @@ struct connection *new_connection(int fd)
 
     c->complete = 0;
     c->fd = fd;
+
+    c->buffer = calloc(BUFSIZE, sizeof(char));
+    if (c->buffer == NULL) {
+        free(c);
+        return NULL;
+    }
+
     c->bufsize = BUFSIZE;
-    memset(c->buffer, '\0', c->bufsize);
 
     return c;
+}
+
+static void free_connection(struct connection *c)
+{
+    if (c->buffer) {
+        free(c->buffer);
+    }
+    free(c);
 }
 
 int message_complete_cb(http_parser *p)
@@ -86,7 +100,7 @@ static void handle_connection(int fd, http_parser *p)
 
     if (read_request(p, c) < 0) {
         fprintf(stderr, "Could not read request\n");
-        free(c);
+        free_connection(c);
         close(fd);
         return;
     }
@@ -95,7 +109,7 @@ static void handle_connection(int fd, http_parser *p)
         fprintf(stderr, "handle_connection: send failed\n");
     }
 
-    free(c);
+    free_connection(c);
     close(fd);
     return;
 }

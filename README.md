@@ -4,7 +4,9 @@ A prototypical web server in C, using a master-worker architecture, leveraging
 Unix pipes as IPC mechanism.
 
 At the moment it doesn't really work as a HTTP server, since it has a standard
-reply for every request. No HTTP parsing whatsoever.
+reply for every request.
+
+**Do not use this in production!**
 
 ## Building it
 

@@ -109,14 +109,15 @@ static void handle_connection(int fd, http_parser *p)
         fprintf(stderr, "handle_connection: send failed\n");
     }
 
+    fprintf(stdout, "[%ld] -- request done --\n", (long)getpid());
     free_connection(c);
     close(fd);
     return;
 }
 
-void worker_loop(int ipc_sock)
+void worker_loop(int listen_fd)
 {
-    int recvd_conn_fd;
+    int conn_fd;
 
     http_parser *parser = malloc(sizeof(http_parser));
     if (parser == NULL) err_exit("Could not allocate parser");
@@ -124,14 +125,10 @@ void worker_loop(int ipc_sock)
     http_parser_init(parser, HTTP_REQUEST);
 
     for (;;) {
-        if (recv_fd(ipc_sock, &recvd_conn_fd) < 0) {
-            err_exit("Could not receive recvd_conn_fd");
+        if ((conn_fd = accept_conn(listen_fd)) < 0) {
+            err_exit("Could not accept connection");
         }
 
-        handle_connection(recvd_conn_fd, parser);
-
-        if (write(ipc_sock, "", 1) != 1) {
-            err_exit("Could write available-signal to socket");
-        }
+        handle_connection(conn_fd, parser);
     }
 }

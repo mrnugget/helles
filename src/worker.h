@@ -12,6 +12,6 @@ struct worker {
   int count;
 };
 
-void worker_loop(int ipc_sock);
+void worker_loop(int listen_fd);
 
 #endif

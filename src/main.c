@@ -14,16 +14,6 @@
 #include "worker.h"
 #include "networking.h"
 
-void trap_sig(int sig, void (*sig_handler)(int));
-void sigint_handler(int s);
-
-void err_kill_exit(char *msg);
-
-int send_conn_worker(int n, struct worker *workers, int last_used, int fd);
-int available_worker(int n, struct worker *workers, int last_used);
-void kill_workers(int n, struct worker *workers);
-int spawn_workers(int n, struct worker *workers, int listen_fd);
-
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
@@ -32,12 +22,12 @@ int main(int argc, char *argv[])
     }
 
     char *port = argv[1];
-    int listen_fd, conn_fd;
-    int i, maxfd, sc;
-    int ipc_buf, ipc_rc;
-    fd_set readset, masterset;
-    int last_used_worker = 0;
-    int available = N_WORKERS;
+    int listen_fd;//, conn_fd;
+    int i, maxfd;//, sc;
+    /* int ipc_buf, ipc_rc; */
+    /* fd_set readset, masterset; */
+    /* int last_used_worker = 0; */
+    /* int available = N_WORKERS; */
 
     // Listen on port
     if ((listen_fd = he_listen(port)) < 0) {
@@ -52,13 +42,12 @@ int main(int argc, char *argv[])
     }
 
     // Prepare sets for select(2)
-    FD_ZERO(&masterset);
-    FD_SET(listen_fd, &masterset);
-    maxfd = listen_fd;
+    /* FD_ZERO(&masterset); */
+    maxfd = 0;
 
     // Add workers IPC pipes to masterset
     for (i = 0; i < N_WORKERS; i++) {
-        FD_SET(workers[i].pipefd, &masterset);
+        /* FD_SET(workers[i].pipefd, &masterset); */
         maxfd = workers[i].pipefd > maxfd ? workers[i].pipefd : maxfd;
     }
 
@@ -69,49 +58,32 @@ int main(int argc, char *argv[])
             N_WORKERS, port);
 
     for ( ; ; ) {
-        readset = masterset;
-        if (available <= 0) {
-            // No worker is available. So do not accept until we have available
-            // worker
-            FD_CLR(listen_fd, &readset);
-        }
-
-        if ((sc = select(maxfd + 1, &readset, NULL, NULL, NULL)) < 0) {
-            err_kill_exit("select failed");
-        }
-
-        if (FD_ISSET(listen_fd, &readset)) {
-            if ((conn_fd = accept_conn(listen_fd)) < 0) {
-                err_kill_exit("accept_conn failed");
-            }
-
-            last_used_worker = send_conn_worker(N_WORKERS, workers,
-                    last_used_worker, conn_fd);
-            if (last_used_worker < 0) {
-                err_kill_exit("send_conn_worker failed");
-            }
-            available--;
-
-            if (--sc == 0) {
-                continue;
-            }
-        }
-
-        // Check if message from worker is ready to read
-        for (i = 0; i < N_WORKERS; i++) {
-            if (FD_ISSET(workers[i].pipefd, &readset)) {
-                if ((ipc_rc = read(workers[i].pipefd, &ipc_buf, 1)) == 0) {
-                    err_kill_exit("Could not read from worker socket");
-                }
-                workers[i].available = 1;
-                available++;
-
-                // No workers ready to read anymore, no need to check them
-                if (--sc == 0) {
-                    break;
-                }
-            }
-        }
+        /* readset = masterset; */
+        /* if (available <= 0) { */
+        /*     // No worker is available. So do not accept until we have available */
+        /*     // worker */
+        /*     FD_CLR(listen_fd, &readset); */
+        /* } */
+        /*  */
+        /* if ((sc = select(maxfd + 1, &readset, NULL, NULL, NULL)) < 0) { */
+        /*     err_kill_exit("select failed"); */
+        /* } */
+        /*  */
+        /* // Check if message from worker is ready to read */
+        /* for (i = 0; i < N_WORKERS; i++) { */
+        /*     if (FD_ISSET(workers[i].pipefd, &readset)) { */
+        /*         if ((ipc_rc = read(workers[i].pipefd, &ipc_buf, 1)) == 0) { */
+        /*             err_kill_exit("Could not read from worker socket"); */
+        /*         } */
+        /*         workers[i].available = 1; */
+        /*         available++; */
+        /*  */
+        /*         // No workers ready to read anymore, no need to check them */
+        /*         if (--sc == 0) { */
+        /*             break; */
+        /*         } */
+        /*     } */
+        /* } */
     }
 
     return 0;
@@ -152,32 +124,6 @@ void err_kill_exit(char *msg)
     exit(1);
 }
 
-int send_conn_worker(int n, struct worker *workers, int last_used, int conn_fd)
-{
-    int i = available_worker(n, workers, last_used);
-
-    workers[i].available = 0;
-    workers[i].count++;
-
-    if (send_fd(workers[i].pipefd, &conn_fd) < 0) {
-        fprintf(stderr, "Could not send conn_fd to worker\n");
-        return -1;
-    }
-
-    close(conn_fd);
-
-    return i;
-}
-
-int available_worker(int n, struct worker *workers, int last_used)
-{
-    do {
-        last_used++;
-    } while (!workers[(last_used % n)].available);
-
-    return last_used % n;
-}
-
 void kill_workers(int n, struct worker *workers)
 {
     int i;
@@ -197,10 +143,9 @@ int spawn_workers(int n, struct worker *workers, int listen_fd)
         pid = fork();
         if (pid == 0) {
             // Child process
-            close(listen_fd); // Worker does not need this
             close(sockfd[0]); // Close the 'parent-end' of the pipe
 
-            worker_loop(sockfd[1]);
+            worker_loop(listen_fd);
         } else if (pid > 0) {
             // Parent process
             close(sockfd[1]);

@@ -59,6 +59,10 @@ static void free_connection(struct connection *c)
 int url_cb(http_parser *p, const char *url, size_t url_len)
 {
     struct connection *c = p->data;
+
+    // TODO: this needs to be optimized. we don't want to call malloc while
+    // handling a request. Probably use a pre-allocated buffer and limit to the
+    // maximum URL size to something.
     c->url = calloc(url_len + 1, sizeof(char));
     if (c->url == NULL) return 1;
 
@@ -107,6 +111,25 @@ static int read_request(http_parser *p, struct connection *c)
     return 0;
 }
 
+int send_response(struct connection *c)
+{
+    char *file_path = c->url;
+    if (file_path == NULL) {
+        // TODO: send 500
+    }
+
+    // TODO: sanitize url: do not allow path traversal
+    // TODO: check if file exists
+    // TODO: if file does not exist: answer with 404
+    // TODO: if file exists: get file size, open file
+    //                       respond with 200, send content-length header
+    //                       use `sendfile` to send the file to the client
+    // TODO: send mime-type
+    // TODO: if anything fails: send 500
+
+    return 0;
+}
+
 static void handle_connection(int fd, http_parser *p)
 {
     int response_len = strlen(response_ok);
@@ -123,7 +146,10 @@ static void handle_connection(int fd, http_parser *p)
         return;
     }
 
-    printf("request read. url=%s\n", c->url);
+    // TODO: use this as soon as it's implemented
+    // if (send_response(c) < 0) {
+    //     fprintf(stderr, "handle_connection: send_response failed\n");
+    // }
 
     if (send(fd, response_ok, response_len, 0) != response_len) {
         fprintf(stderr, "handle_connection: send failed\n");

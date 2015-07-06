@@ -19,6 +19,7 @@ struct connection {
     int fd;
     int bufsize;
     char *buffer;
+    char *url;
 };
 
 struct connection *new_connection(int fd)
@@ -28,6 +29,7 @@ struct connection *new_connection(int fd)
         return NULL;
     }
 
+    c->url = NULL;
     c->complete = 0;
     c->fd = fd;
 
@@ -36,7 +38,6 @@ struct connection *new_connection(int fd)
         free(c);
         return NULL;
     }
-
     c->bufsize = BUFSIZE;
 
     return c;
@@ -47,7 +48,23 @@ static void free_connection(struct connection *c)
     if (c->buffer) {
         free(c->buffer);
     }
+
+    if (c->url) {
+        free(c->url);
+    }
+
     free(c);
+}
+
+int url_cb(http_parser *p, const char *url, size_t url_len)
+{
+    struct connection *c = p->data;
+    c->url = calloc(url_len + 1, sizeof(char));
+    if (c->url == NULL) return 1;
+
+    memcpy(c->url, url, url_len);
+
+    return 0;
 }
 
 int message_complete_cb(http_parser *p)
@@ -58,7 +75,8 @@ int message_complete_cb(http_parser *p)
 }
 
 static struct http_parser_settings settings = {
-    .on_message_complete = message_complete_cb
+    .on_message_complete = message_complete_cb,
+    .on_url = url_cb
 };
 
 static void err_exit(char *msg)
@@ -104,6 +122,8 @@ static void handle_connection(int fd, http_parser *p)
         close(fd);
         return;
     }
+
+    printf("request read. url=%s\n", c->url);
 
     if (send(fd, response_ok, response_len, 0) != response_len) {
         fprintf(stderr, "handle_connection: send failed\n");

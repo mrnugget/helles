@@ -14,6 +14,12 @@ char *response_ok = "HTTP/1.1 200 OK\r\n"
 "Connection: close\r\n\r\n"
 "It's a UNIX system! I know this!";
 
+char *response_not_found = "HTTP/1.1 404 Not Found\r\n"
+"Connection: close\r\n\r\n";
+
+#define MAX_FILE_PATH 2048
+#define SERVE_DIRECTORY "."
+
 struct connection {
     int complete;
     int fd;
@@ -113,14 +119,29 @@ static int read_request(http_parser *p, struct connection *c)
 
 int send_response(struct connection *c)
 {
-    char *file_path = c->url;
-    if (file_path == NULL) {
+    if (c->url == NULL) {
         // TODO: send 500
     }
 
+    // Sanity check: http_parser already cuts down the size of the URL for us.
+    if ((strlen(SERVE_DIRECTORY) + strlen(c->url)) >= MAX_FILE_PATH-1) {
+        fprintf(stderr, "file path exceeds buffer size\n");
+        return -1;
+    }
+
+    char file_path[MAX_FILE_PATH];
+    snprintf(file_path, MAX_FILE_PATH, "%s%s", SERVE_DIRECTORY, c->url);
+
     // TODO: sanitize url: do not allow path traversal
-    // TODO: check if file exists
-    // TODO: if file does not exist: answer with 404
+
+    if (access(file_path, F_OK) < 0) {
+        int len = strlen(response_not_found);
+        if (send(c->fd, response_not_found, len, 0) != len) {
+            fprintf(stderr, "handle_connection: send failed\n");
+            return 0;
+        }
+    }
+
     // TODO: if file exists: get file size, open file
     //                       respond with 200, send content-length header
     //                       use `sendfile` to send the file to the client

@@ -1,13 +1,20 @@
 #include "fmacros.h"
 #include <stdlib.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/uio.h>
 #include <arpa/inet.h>
 
 #include "networking.h"
 #include "ipc.h"
 #include "worker.h"
 #include "http_parser.h"
+
+char *status_ok = "HTTP/1.1 200 OK\r\n";
 
 char *response_ok = "HTTP/1.1 200 OK\r\n"
 "Content-Length: 32\r\n"
@@ -17,6 +24,7 @@ char *response_ok = "HTTP/1.1 200 OK\r\n"
 char *response_not_found = "HTTP/1.1 404 Not Found\r\n"
 "Connection: close\r\n\r\n";
 
+#define MAX_HEADER_SIZE 4096
 #define MAX_FILE_PATH 2048
 #define SERVE_DIRECTORY "."
 
@@ -117,6 +125,19 @@ static int read_request(http_parser *p, struct connection *c)
     return 0;
 }
 
+int send_string(struct connection *c, char *status)
+{
+    int len = strlen(status);
+    return send(c->fd, status, len, 0) == len;
+}
+
+int send_content_length(struct connection *c, off_t length)
+{
+    char header_line[MAX_HEADER_SIZE];
+    sprintf(header_line, "Content-Length: %llu\r\n", length);
+    return send_string(c, header_line);
+}
+
 int send_response(struct connection *c)
 {
     if (c->url == NULL) {
@@ -142,18 +163,52 @@ int send_response(struct connection *c)
         }
     }
 
-    // TODO: if file exists: get file size, open file
-    //                       respond with 200, send content-length header
-    //                       use `sendfile` to send the file to the client
+    FILE *f = fopen(file_path, "r");
+    if (f == NULL) {
+        fprintf(stderr, "opening %s failed: %s\n", file_path, strerror(errno));
+        return -1;
+    }
+
+    int fd = fileno(f);
+    struct stat stat_buf;
+
+    if (fstat(fd, &stat_buf) < 0) {
+        fprintf(stderr, "stat %s failed: %s\n", file_path, strerror(errno));
+        return -1;
+    }
+
+    if (!send_string(c, status_ok)) {
+        fprintf(stderr, "sending status failed\n");
+        return -1;
+    }
+
+    if (!send_content_length(c, stat_buf.st_size)) {
+        fprintf(stderr, "sending content length failed\n");
+        return -1;
+    }
+
+    // TODO: use a generic "send_header" function and add a `send_body` function
+    // that adds the "\r\n"
+    if (!send_string(c, "Connection: close\r\n\r\n")) {
+        fprintf(stderr, "sending connection close failed\n");
+        return -1;
+    }
+
+    if (sendfile(fd, c->fd, 0, &stat_buf.st_size, NULL, 0) < 0) {
+        fprintf(stderr, "sendfile failed\n");
+        return -1;
+    }
+
     // TODO: send mime-type
     // TODO: if anything fails: send 500
 
+    fclose(f);
     return 0;
 }
 
 static void handle_connection(int fd, http_parser *p)
 {
-    int response_len = strlen(response_ok);
+    /* int response_len = strlen(response_ok); */
 
     struct connection *c = new_connection(fd);
     if (c == NULL) err_exit("Could not allocate connection\n");
@@ -167,13 +222,8 @@ static void handle_connection(int fd, http_parser *p)
         return;
     }
 
-    // TODO: use this as soon as it's implemented
-    // if (send_response(c) < 0) {
-    //     fprintf(stderr, "handle_connection: send_response failed\n");
-    // }
-
-    if (send(fd, response_ok, response_len, 0) != response_len) {
-        fprintf(stderr, "handle_connection: send failed\n");
+    if (send_response(c) < 0) {
+        fprintf(stderr, "handle_connection: send_response failed\n");
     }
 
     free_connection(c);

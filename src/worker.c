@@ -146,6 +146,7 @@ int send_response(struct connection *c)
 
     // Sanity check: http_parser already cuts down the size of the URL for us.
     if ((strlen(SERVE_DIRECTORY) + strlen(c->url)) >= MAX_FILE_PATH-1) {
+        // TODO: send 500
         fprintf(stderr, "file path exceeds buffer size\n");
         return -1;
     }
@@ -166,41 +167,49 @@ int send_response(struct connection *c)
 
     FILE *f = fopen(file_path, "r");
     if (f == NULL) {
+        // TODO: send 500
         fprintf(stderr, "opening %s failed: %s\n", file_path, strerror(errno));
-        return -1;
+        return -2;
     }
 
     int fd = fileno(f);
     struct stat stat_buf;
 
     if (fstat(fd, &stat_buf) < 0) {
+        // TODO: send 500
         fprintf(stderr, "stat %s failed: %s\n", file_path, strerror(errno));
-        return -1;
+        return -3;
     }
 
+    // TODO: Implement generic "send_status" method
     if (!send_string(c, status_ok)) {
+        // TODO: send 500
         fprintf(stderr, "sending status failed\n");
-        return -1;
+        return -3;
     }
+
+    // TODO: send mime-type
 
     if (!send_content_length(c, stat_buf.st_size)) {
+        // TODO: send 500
         fprintf(stderr, "sending content length failed\n");
-        return -1;
+        return -3;
     }
 
     // TODO: use a generic "send_header" function and add a `send_body` function
     // that adds the "\r\n"
     if (!send_string(c, "Connection: close\r\n\r\n")) {
+        // TODO: send 500
         fprintf(stderr, "sending connection close failed\n");
-        return -1;
+        return -4;
     }
 
     if (sendfile(fd, c->fd, 0, &stat_buf.st_size, NULL, 0) < 0) {
+        // TODO: send 500
         fprintf(stderr, "sendfile failed\n");
-        return -1;
+        return -5;
     }
 
-    // TODO: send mime-type
     // TODO: if anything fails: send 500
 
     fclose(f);

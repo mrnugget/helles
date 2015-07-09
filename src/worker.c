@@ -14,16 +14,6 @@
 #include "worker.h"
 #include "http_parser.h"
 
-char *status_ok = "HTTP/1.1 200 OK\r\n";
-
-char *response_ok = "HTTP/1.1 200 OK\r\n"
-"Content-Length: 32\r\n"
-"Connection: close\r\n\r\n"
-"It's a UNIX system! I know this!";
-
-char *response_not_found = "HTTP/1.1 404 Not Found\r\n"
-"Connection: close\r\n\r\n";
-
 #define MAX_HEADER_SIZE 4096
 #define MAX_FILE_PATH 2048
 #define SERVE_DIRECTORY "."
@@ -125,6 +115,25 @@ static int read_request(http_parser *p, struct connection *c)
     return 0;
 }
 
+int send_status(struct connection *c, int status_code)
+{
+    int status_len;
+    char *status;
+
+    switch (status_code) {
+        case 200: status = "HTTP 1.1 200 OK\r\n"; break;
+        case 404: status = "HTTP 1.1 404 Not Found\r\n"; break;
+        case 500: status = "HTTP 1.1 500 Internal Server Error\r\n"; break;
+        default:
+                  fprintf(stderr, "status code %d not found\n", status_code);
+                  return -1;
+    }
+
+    status_len = strlen(status);
+
+    return send(c->fd, status, status_len, 0) == status_len;
+}
+
 int send_string(struct connection *c, char *status)
 {
     int len = strlen(status);
@@ -146,7 +155,6 @@ int send_response(struct connection *c)
 
     // Sanity check: http_parser already cuts down the size of the URL for us.
     if ((strlen(SERVE_DIRECTORY) + strlen(c->url)) >= MAX_FILE_PATH-1) {
-        // TODO: send 500
         fprintf(stderr, "file path exceeds buffer size\n");
         return -1;
     }
@@ -156,61 +164,49 @@ int send_response(struct connection *c)
 
     // TODO: sanitize url: do not allow path traversal
 
-    if (access(file_path, F_OK) < 0) {
-        int len = strlen(response_not_found);
-        if (send(c->fd, response_not_found, len, 0) != len) {
-            fprintf(stderr, "handle_connection: send failed\n");
-            return 0;
-        }
-        return 0;
-    }
+    if (access(file_path, F_OK) < 0) return send_status(c, 404);
 
     FILE *f = fopen(file_path, "r");
     if (f == NULL) {
-        // TODO: send 500
         fprintf(stderr, "opening %s failed: %s\n", file_path, strerror(errno));
-        return -2;
+        return send_status(c, 500);
     }
 
     int fd = fileno(f);
     struct stat stat_buf;
 
     if (fstat(fd, &stat_buf) < 0) {
-        // TODO: send 500
         fprintf(stderr, "stat %s failed: %s\n", file_path, strerror(errno));
-        return -3;
+        fclose(f);
+        return send_status(c, 500);
     }
 
-    // TODO: Implement generic "send_status" method
-    if (!send_string(c, status_ok)) {
-        // TODO: send 500
+    if (send_status(c, 200) < 0) {
         fprintf(stderr, "sending status failed\n");
-        return -3;
+        fclose(f);
+        return -1;
     }
 
     // TODO: send mime-type
 
-    if (!send_content_length(c, stat_buf.st_size)) {
-        // TODO: send 500
+    if (send_content_length(c, stat_buf.st_size) < 0) {
         fprintf(stderr, "sending content length failed\n");
-        return -3;
+        fclose(f);
+        return -1;
     }
 
     // TODO: use a generic "send_header" function and add a `send_body` function
     // that adds the "\r\n"
     if (!send_string(c, "Connection: close\r\n\r\n")) {
-        // TODO: send 500
         fprintf(stderr, "sending connection close failed\n");
-        return -4;
+        fclose(f);
+        return -1;
     }
 
     if (sendfile(fd, c->fd, 0, &stat_buf.st_size, NULL, 0) < 0) {
-        // TODO: send 500
         fprintf(stderr, "sendfile failed\n");
-        return -5;
+        return -1;
     }
-
-    // TODO: if anything fails: send 500
 
     fclose(f);
     return 0;

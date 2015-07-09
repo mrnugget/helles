@@ -161,6 +161,7 @@ int send_response(struct connection *c)
             fprintf(stderr, "handle_connection: send failed\n");
             return 0;
         }
+        return 0;
     }
 
     FILE *f = fopen(file_path, "r");

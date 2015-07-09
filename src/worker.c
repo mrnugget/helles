@@ -208,8 +208,6 @@ int send_response(struct connection *c)
 
 static void handle_connection(int fd, http_parser *p)
 {
-    /* int response_len = strlen(response_ok); */
-
     struct connection *c = new_connection(fd);
     if (c == NULL) err_exit("Could not allocate connection\n");
 

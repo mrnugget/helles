@@ -109,6 +109,7 @@ static int read_request(http_parser *p, struct connection *c)
             fprintf(stderr, "nparsed != nread\n");
             return -1;
         }
+
         if (c->complete) break;
     } while (nread > 0);
 
@@ -150,7 +151,8 @@ int send_content_length(struct connection *c, off_t length)
 int send_response(struct connection *c)
 {
     if (c->url == NULL) {
-        // TODO: send 500
+        fprintf(stderr, "no url for connection\n");
+        return -1;
     }
 
     // Sanity check: http_parser already cuts down the size of the URL for us.

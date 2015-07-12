@@ -2,6 +2,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <sys/select.h>
 #include <sys/socket.h>
@@ -147,7 +149,12 @@ void sigint_handler(int s)
 
 void err_kill_exit(char *msg)
 {
-    fprintf(stderr, "%s\n", msg);
+    if (errno != 0) {
+        fprintf(stderr, "%s (errno: %s)\n", msg, strerror(errno));
+    } else {
+        fprintf(stderr, "%s\n", msg);
+    }
+
     kill_workers(N_WORKERS, workers);
     exit(1);
 }

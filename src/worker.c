@@ -121,9 +121,9 @@ int send_status(struct connection *c, int status_code)
     char *status;
 
     switch (status_code) {
-        case 200: status = "HTTP 1.1 200 OK\r\n"; break;
-        case 404: status = "HTTP 1.1 404 Not Found\r\n"; break;
-        case 500: status = "HTTP 1.1 500 Internal Server Error\r\n"; break;
+        case 200: status = "HTTP/1.1 200 OK\r\n"; break;
+        case 404: status = "HTTP/1.1 404 Not Found\r\n"; break;
+        case 500: status = "HTTP/1.1 500 Internal Server Error\r\n"; break;
         default:
                   fprintf(stderr, "status code %d not found\n", status_code);
                   return -1;

@@ -204,7 +204,7 @@ int send_response(struct connection *c)
     }
 
     if (sendfile(fd, c->fd, 0, &stat_buf.st_size, NULL, 0) < 0) {
-        fprintf(stderr, "sendfile failed\n");
+        fprintf(stderr, "sendfile failed: %s\n", strerror(errno));
         return -1;
     }
 

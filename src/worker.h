@@ -3,7 +3,7 @@
 
 #include <unistd.h>
 
-#define BUFSIZE 1024
+#define BUFSIZE 4096
 
 struct worker {
   pid_t pid;

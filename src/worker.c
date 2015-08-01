@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/sendfile.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <arpa/inet.h>
@@ -205,8 +206,14 @@ int send_response(struct connection *c)
         return -1;
     }
 
-    if (sendfile(fd, c->fd, 0, &stat_buf.st_size, NULL, 0) < 0) {
-        fprintf(stderr, "sendfile failed: %s\n", strerror(errno));
+#ifdef __linux__
+    int sr = sendfile(c->fd, fd, 0, stat_buf.st_size);
+#else
+    int sr = sendfile(fd, c->fd, 0, &stat_buf.st_size, NULL, 0);
+#endif
+    if (sr < 0) {
+        perror("sendfile failed");
+        fclose(f);
         return -1;
     }
 

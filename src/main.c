@@ -18,6 +18,7 @@
 
 void trap_sig(int sig, void (*sig_handler)(int));
 void sigint_handler(int s);
+void sigchld_handler(int s);
 
 void err_kill_exit(char *msg);
 
@@ -66,6 +67,8 @@ int main(int argc, char *argv[])
 
     // Trap signals
     trap_sig(SIGINT, sigint_handler);
+    trap_sig(SIGCHLD, sigchld_handler);
+    trap_sig(SIGPIPE, SIG_IGN);
 
     printf("Helles booted up. %d workers listening on port %s\n",
             N_WORKERS, port);
@@ -145,6 +148,21 @@ void sigint_handler(int s)
     free(workers);
 
     exit(0);
+}
+
+void sigchld_handler(int s)
+{
+    pid_t pid;
+    int status, i;
+    while ((pid = waitpid(-1, &status, WNOHANG)) != -1)
+    {
+        for (i = 0; i < N_WORKERS; i++) {
+            if (workers[i].pid == pid) {
+                fprintf(stderr, "worker %d just died\n", i);
+                return;
+            }
+        }
+    }
 }
 
 void err_kill_exit(char *msg)

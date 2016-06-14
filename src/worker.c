@@ -147,7 +147,7 @@ int send_string(struct connection *c, char *status)
 int send_content_length(struct connection *c, off_t length)
 {
     char header_line[MAX_HEADER_SIZE];
-    sprintf(header_line, "Content-Length: %llu\r\n", length);
+    sprintf(header_line, "Content-Length: %llu\r\n", (unsigned long long)length);
     return send_string(c, header_line);
 }
 

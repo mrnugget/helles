@@ -262,8 +262,8 @@ void worker_loop(int ipc_sock)
 
         handle_connection(recvd_conn_fd, parser);
 
-        if (write(ipc_sock, "", 1) != 1) {
-            err_exit("Could write available-signal to socket");
+        if (write(ipc_sock, ".", 1) != 1) {
+            err_exit("Could not write available-signal to socket");
         }
     }
 }

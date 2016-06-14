@@ -5,7 +5,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#ifdef __linux__
 #include <sys/sendfile.h>
+#endif
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <arpa/inet.h>

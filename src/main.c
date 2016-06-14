@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
             N_WORKERS, port);
 
     for ( ; ; ) {
+        FD_CLR(listen_fd, &readset);
         readset = masterset;
         if (available <= 0) {
             // No worker is available. So do not accept until we have available
